@@ -1,10 +1,19 @@
+# Imports
 import math
 import sys
+import os
+import numpy as np
+# Widgets
 from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QStyleFactory
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainter, QPalette, QColor, QPixmap, QTransform
+from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtGui import QPainter, QPalette, QColor, QPixmap, QTransform, QIcon
 from PyQt6 import uic
-
+import traceback
+sys.excepthook = lambda *a: traceback.print_exception(*a)
+# Helper functions
+from ui.antlines import AntlineAnimator
+from ui.valve_state import valveButtons
+from ui.buttonLists import buttonOpen, buttonClose
 
 class tacsApp(QMainWindow):
     def __init__(self):
@@ -13,11 +22,24 @@ class tacsApp(QMainWindow):
         
         # Saves the original pixmap of the label
         self.originalPixmap = self.labelValve.pixmap()
-        w = self.originalPixmap.width()
-        h = self.originalPixmap.height()
 
         # Updates the value for text browser when the value is changed
         self.dialValve.valueChanged.connect(self.readDial)
+        
+        # Initalizes button click event for advancing the antline
+        self.antlineAnim = AntlineAnimator(self.antline_g)
+        self.buttonAntline1.clicked.connect(self.antlineAnim.toggle)
+        
+        # Handles switching between button states
+        # Runs through lists stores in buttonLists
+        self.valves = []
+        for open_name, close_name in zip(buttonOpen, buttonClose):
+            open_btn = getattr(self, open_name)
+            close_btn = getattr(self, close_name)
+            valve = valveButtons(open_btn, close_btn)       
+            self.valves.append(valve)      # stores every valve in a list
+            open_btn.clicked.connect(lambda checked=False, v=valve: v.set_state(True))
+            close_btn.clicked.connect(lambda checked=False, v=valve: v.set_state(False))
 
     def readDial(self):
         dialValue = self.dialValve.value()
@@ -28,21 +50,13 @@ class tacsApp(QMainWindow):
         
     def rotateLabel(self):
         labelAngle = self.dialValve.value()
-        
-        #Prepare the transformation centered on the image
-        
+
         t = QTransform()
         t.rotate(labelAngle)
-        
         # Rotates the original pixmap
         rotatedPixmap = self.originalPixmap.transformed(t, Qt.TransformationMode.SmoothTransformation)
-        
         self.labelValve.setPixmap(rotatedPixmap)
-         
-
-
-        
-        
+            
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
@@ -50,8 +64,8 @@ if __name__ == "__main__":
     app.setStyle(QStyleFactory.create("Fusion"))
     
     light_palette = QPalette()
-    light_palette.setColor(QPalette.ColorRole.Window, QColor(255, 255, 255))
-    light_palette.setColor(QPalette.ColorRole.WindowText, QColor(0, 0, 0))
+    light_palette.setColor(QPalette.ColorRole.Window, QColor(43,43,43))
+    light_palette.setColor(QPalette.ColorRole.WindowText, QColor(255, 255, 255))
     app.setPalette(light_palette)
 
     window = tacsApp()
